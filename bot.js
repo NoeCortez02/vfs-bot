@@ -54,25 +54,74 @@ async function verificarSite() {
                 '--disable-gpu',
                 '--no-first-run',
                 '--single-process',
-                '--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+                '--disable-blink-features=AutomationControlled',
+                '--disable-features=IsolateOrigins,site-per-process',
+                '--allow-running-insecure-content',
+                '--disable-web-resources'
             ]
         });
         
         const page = await browser.newPage();
         
-        await page.goto(CONFIG.url, {
-            waitUntil: 'domcontentloaded',
-            timeout: 60000
+        // Setar headers realistas
+        await page.setExtraHTTPHeaders({
+            'Accept-Language': 'pt-PT,pt;q=0.9,en;q=0.8',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+            'Accept-Encoding': 'gzip, deflate, br',
+            'DNT': '1',
+            'Connection': 'keep-alive',
+            'Upgrade-Insecure-Requests': '1',
+            'Sec-Fetch-Dest': 'document',
+            'Sec-Fetch-Mode': 'navigate',
+            'Sec-Fetch-Site': 'none',
+            'Cache-Control': 'max-age=0'
         });
         
+        // Definir user agent realista
+        await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
+        
+        // Viewport realista
+        await page.setViewport({ width: 1920, height: 1080 });
+        
+        // Desabilitar webdriver
+        await page.evaluateOnNewDocument(() => {
+            Object.defineProperty(navigator, 'webdriver', {
+                get: () => undefined,
+            });
+        });
+        
+        // Delay inicial aleatório
+        await delayAleatorio(2000, 5000);
+        
+        console.log('📡 Tentando acessar...');
+        await page.goto(CONFIG.url, {
+            waitUntil: 'networkidle2',
+            timeout: 90000
+        });
+        
+        // Delay após carregar
         await delayAleatorio(5000, 10000);
+        
+        // Simular comportamento humano - scrolling
+        await page.evaluate(() => {
+            window.scrollBy(0, window.innerHeight);
+        });
+        
+        await delayAleatorio(1000, 3000);
         
         const conteudo = await page.evaluate(() => {
             return document.body ? document.body.innerText : '';
         });
         
-        if (conteudo.includes('403') || conteudo.includes('blocked')) {
-            console.log('⚠️ Cloudflare bloqueou');
+        // Verificar se foi bloqueado
+        if (conteudo.includes('403') || 
+            conteudo.includes('Cloudflare') || 
+            conteudo.includes('blocked') ||
+            conteudo.includes('Challenge') ||
+            conteudo.includes('unusual traffic') ||
+            conteudo.includes('Ray ID')) {
+            console.log('⚠️ Cloudflare bloqueou - tentando novamente com delay maior...');
+            await delayAleatorio(30000, 60000);
             return;
         }
         
@@ -106,6 +155,11 @@ async function verificarSite() {
         
     } catch (erro) {
         console.error('❌ Erro:', erro.message);
+        if (erro.message.includes('net::ERR_NAME_NOT_RESOLVED')) {
+            console.log('⚠️ Erro de DNS - verificar conexão');
+        } else if (erro.message.includes('ERR_TIMED_OUT')) {
+            console.log('⚠️ Timeout - site pode estar lento');
+        }
     } finally {
         if (browser) {
             await browser.close();
@@ -114,8 +168,9 @@ async function verificarSite() {
 }
 
 async function iniciar() {
-    console.log('🤖 Bot VFS no Railway iniciado');
+    console.log('🤖 Bot VFS Anti-Cloudflare iniciado');
     console.log(`⏰ A cada ${CONFIG.checkInterval} minutos`);
+    console.log('🛡️ Proteções ativas: Stealth + Headers + Delays');
     
     await verificarSite();
     
