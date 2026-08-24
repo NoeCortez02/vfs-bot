@@ -126,3 +126,8 @@ async function iniciar() {
 }
 
 iniciar().catch(console.error);
+
+// Manter o processo vivo
+setInterval(() => {
+    console.log('💓 Bot ainda está vivo');
+}, 60000);
