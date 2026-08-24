@@ -1,4 +1,4 @@
-const puppeteer = require('puppeteer-core');
+const puppeteer = require('puppeteer');
 const nodemailer = require('nodemailer');
 const cron = require('node-cron');
 
@@ -44,7 +44,6 @@ async function verificarSite() {
     
     try {
         browser = await puppeteer.launch({
-            executablePath: '/usr/bin/chromium-browser',
             headless: 'new',
             args: [
                 '--no-sandbox',
